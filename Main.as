@@ -40,6 +40,7 @@ package
 			for (var i:int = 0; i < dotsLength; i++)
 			{
 				dots[i].addEventListener(MouseEvent.MOUSE_DOWN, initiatePattern);
+				dots[i].alpha=0.6;
 				//dots[i].addEventListener(MouseEvent.MOUSE_UP, stopPattern);
 			}
 		}
@@ -47,10 +48,12 @@ package
 		private function initiatePattern(e:MouseEvent):void
 		{
 			var dotsLength:int = dots.length;
+			e.target.alpha = 1;
 
 			for (var i:int = 0; i < dotsLength; i++)
 			{
 				dots[i].addEventListener(MouseEvent.MOUSE_OVER, addPattern);
+				dots[i].addEventListener(MouseEvent.MOUSE_OUT, mouseMoveOut);
 			}
 			stage.addEventListener(MouseEvent.MOUSE_MOVE, drawTraceLine);
 			stage.addEventListener(MouseEvent.MOUSE_UP, stopPattern);
@@ -59,10 +62,15 @@ package
 
 			last_dot_index = dots.indexOf(e.target);
 		}
+		private function mouseMoveOut(e:MouseEvent)
+		{
+			e.target.alpha = 0.6;
+		}
 
 		private function addPattern(e:MouseEvent):void
 		{
 			var index:int = dots.indexOf(e.target);
+			e.target.alpha = 1;
 			path.push(index + 1);
 
 			if (dotslink)
@@ -193,7 +201,7 @@ internal class TraceLineDrawer
 		for (i = 1; i<points_.length; i++)
 		{
 			line_.graphics.lineStyle(5, 0xFFD700, left_len/expect_len_, false, LineScaleMode.NORMAL,
-									 CapsStyle.SQUARE, JointStyle.ROUND, 10);
+									 CapsStyle.NONE, JointStyle.ROUND, 10);
 			line_.graphics.lineTo(points_[i].x_, points_[i].y_);
 			left_len -= points_[i].len_;
 			if (left_len <= 0)
