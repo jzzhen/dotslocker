@@ -177,7 +177,7 @@ internal class TraceLineDrawer
 		{
 			return;
 		}
-		
+
 		if (line_)
 		{
 			canvas_.removeChild(line_);
