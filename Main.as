@@ -23,9 +23,12 @@ package
 		private var trace_path:Array = [];
 
 		private var init:Boolean = false;
+		
+		private var trace_line_drawer_:TraceLineDrawer = null;
 
 		public function Main():void
 		{
+			trace_line_drawer_ = new TraceLineDrawer(this, 200);
 			dots = [one,two,three,four,five,six,seven,eight,nine];
 			addListeners();
 		}
@@ -37,20 +40,20 @@ package
 			for (var i:int = 0; i < dotsLength; i++)
 			{
 				dots[i].addEventListener(MouseEvent.MOUSE_DOWN, initiatePattern);
-				dots[i].addEventListener(MouseEvent.MOUSE_UP, stopPattern);
+				//dots[i].addEventListener(MouseEvent.MOUSE_UP, stopPattern);
 			}
 		}
 
 		private function initiatePattern(e:MouseEvent):void
 		{
-			//startListening();
 			var dotsLength:int = dots.length;
 
 			for (var i:int = 0; i < dotsLength; i++)
 			{
 				dots[i].addEventListener(MouseEvent.MOUSE_OVER, addPattern);
 			}
-			stage.addEventListener(MouseEvent.MOUSE_MOVE, duplicateCircle);
+			stage.addEventListener(MouseEvent.MOUSE_MOVE, drawTraceLine);
+			stage.addEventListener(MouseEvent.MOUSE_UP, stopPattern);
 
 			path.push(dots.indexOf(e.target) + 1);
 
@@ -69,14 +72,14 @@ package
 
 			if (false)
 			{
-			dotslink = new Shape();
-			this.addChild(dotslink);
+				dotslink = new Shape();
+				this.addChild(dotslink);
 
-			dotslink.graphics.lineStyle(10, 0xFFD700, 1, false, LineScaleMode.VERTICAL,
-			                               CapsStyle.ROUND, JointStyle.ROUND, 10);
-			dotslink.graphics.moveTo(75+(last_dot_index%3)*85, 121+int(last_dot_index/3)*85);
-			dotslink.graphics.lineTo(75+(index%3)*85, 121+int(index/3)*85);
-			last_dot_index = index;
+				dotslink.graphics.lineStyle(10, 0xFFD700, 1, false, LineScaleMode.VERTICAL,
+				                               CapsStyle.ROUND, JointStyle.ROUND, 10);
+				dotslink.graphics.moveTo(75+(last_dot_index%3)*85, 121+int(last_dot_index/3)*85);
+				dotslink.graphics.lineTo(75+(index%3)*85, 121+int(index/3)*85);
+				last_dot_index = index;
 			}
 		}
 
@@ -88,7 +91,7 @@ package
 			{
 				dots[i].removeEventListener(MouseEvent.MOUSE_OVER, addPattern);
 			}
-			stage.removeEventListener(MouseEvent.MOUSE_MOVE, duplicateCircle);
+			stage.removeEventListener(MouseEvent.MOUSE_MOVE, drawTraceLine);
 			checkPattern();
 
 			if (dotslink)
@@ -112,87 +115,97 @@ package
 			path = [];
 		}
 
-		function duplicateCircle(e:MouseEvent)
+		function drawTraceLine(e:MouseEvent)
 		{
 			var x:Number = stage.mouseX;
 			var y:Number = stage.mouseY;
-
-			if (init==false)
-			{
-				init = true;
-				lastX = x;
-				lastY = y;
-			}
-			else
-			{
-				var trace_line:TraceLine = new TraceLine(this);
-				trace_line.draw(lastX, lastY, x, y);
-				trace_path.push(trace_line);
-				lastX = x;
-				lastY = y;
-				
-				if (trace_path.length > 100)
-				{
-					trace_path.shift().fade(0);
-				}
-				
-				for (var i:int = 0; i<trace_path.length; i++)
-				{
-					trace_path[i].fade((2*i)/100.0);
-					if ( i > 50 )
-						break;
-				}
-			}
+			trace_line_drawer_.addPoint(stage.mouseX, stage.mouseY);
+			trace_line_drawer_.draw();
 		}
-
 	}
 }
-	internal class TraceLine
+import flash.display.Shape;
+import flash.display.CapsStyle;
+import flash.display.JointStyle;
+import flash.display.LineScaleMode;
+
+internal class TracePoint
+{
+	public var len_:uint = 0;
+	public var x_:uint = 0;
+	public var y_:uint = 0;
+
+	public function TracePoint(x:uint, y:uint, len:uint)
 	{
-	import flash.display.MovieClip;
-	import flash.events.MouseEvent;
-	import flash.display.LineScaleMode;
-	import flash.display.CapsStyle;
-	import flash.display.JointStyle;
-	import flash.display.Shape;
-	import fl.transitions.*;
- import fl.transitions.easing.*;
+		len_ = len;
+		x_ = x;
+		y_ = y;
+	}
+}
 
-private var len_:uint = 0;
-		private var line_:Shape = null;
-		private var parent_:Main = null;
+internal class TraceLineDrawer
+{
+	import flash.geom.Point;
 
-		public function TraceLine(parent:Main)
+	private var canvas_:Main = null;
+	private var expect_len_:uint = 0;
+	private var points_:Array = [];
+	private var line_:Shape = null;
+
+	public function TraceLineDrawer(canvas:Main, len:uint)
+	{
+		expect_len_ = len;
+		canvas_ = canvas;
+	}
+
+	public function addPoint(x:uint, y:uint)
+	{
+		if (points_.length == 0)
 		{
-			parent_ = parent;
+			points_.unshift(new TracePoint(x, y, 0));
 		}
-		
-		public function length():uint
+		else
 		{
-			return len_;
-		}
-
-		public function draw(startX:int, startY:int, endX:int, endY:int)
-		{
-			len_ = 1;
-			
-			line_ = new Shape();
-			parent_.addChild(line_);
-
-			line_.graphics.lineStyle(5, 0xFFD700, 1, false, LineScaleMode.VERTICAL,
-			                               CapsStyle.ROUND, JointStyle.ROUND, 10);
-			line_.graphics.moveTo(startX, startY);
-			line_.graphics.lineTo(endX, endY);
-			line_.graphics.lineStyle(5, 0x00D700, .1, false, LineScaleMode.VERTICAL,
-			                               CapsStyle.ROUND, JointStyle.ROUND, 10);
-			line_.graphics.lineTo(endX+5, endY+5);
-
-		}
-
-		public function fade(al:Number)
-		{
-			line_.alpha = al;
-//TransitionManager.start(line_, {type:Fade, direction:Transition.IN, duration:9, easing:Strong.easeOut});;
+			var last_point:TracePoint = points_[0];
+			points_.unshift(new TracePoint(x, y, Point.distance(new Point(x, y), new Point(last_point.x_, last_point.y_))));
 		}
 	}
-	
+
+	public function draw()
+	{
+		if (points_.length < 2)
+		{
+			return;
+		}
+		
+		if (line_)
+		{
+			canvas_.removeChild(line_);
+			line_ = null;
+		}
+		var left_len:Number = expect_len_;
+		line_ = new Shape();
+		canvas_.addChild(line_);
+								 
+		var i:uint = 0;
+		line_.graphics.moveTo(points_[i].x_, points_[i].y_);
+
+		for (i = 1; i<points_.length; i++)
+		{
+			line_.graphics.lineStyle(5, 0xFFD700, left_len/expect_len_, false, LineScaleMode.NORMAL,
+									 CapsStyle.SQUARE, JointStyle.ROUND, 10);
+			line_.graphics.lineTo(points_[i].x_, points_[i].y_);
+			left_len -= points_[i].len_;
+			if (left_len <= 0)
+			{
+				points_.splice(i);
+				break;
+			}
+		}
+	}
+
+	public function clear()
+	{
+		points_ = [];
+	}
+}
