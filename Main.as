@@ -8,6 +8,9 @@ package
 	import flash.display.CapsStyle;
 	import flash.display.JointStyle;
 	import flash.display.Shape;
+	import fl.transitions.Tween;
+	import fl.transitions.easing.Strong;
+	import fl.transitions.easing.Back;
 
 
 
@@ -21,8 +24,10 @@ package
 		private var lastX:Number = 0;
 		private var lastY:Number = 0;
 		private var trace_path:Array = [];
-
-		private var init:Boolean = false;
+		
+		private var work_mode_:String = null;
+		private var banner_:MovieClip = null;
+		private var tween_:Tween;
 		
 		private var trace_line_drawer_:TraceLineDrawer = null;
 
@@ -31,6 +36,36 @@ package
 			trace_line_drawer_ = new TraceLineDrawer(this, 200);
 			dots = [one,two,three,four,five,six,seven,eight,nine];
 			addListeners();
+			do_init();
+		}
+		
+		private function do_init()
+		{
+			var m:String = loaderInfo.parameters["m"];
+			if (!m)
+			{
+				m = WorkMode.CREATE;
+			}
+
+			switch(m)
+			{
+				case WorkMode.CREATE:
+					banner_ = new CreateIntro();
+					break;
+				case WorkMode.VERIFY:
+					banner_ = new CreateVerify();
+					break;
+				case WorkMode.DELETE:
+					break;
+				case WorkMode.MODIFY:
+					break;
+			}
+			if (banner_)
+			{
+				work_mode_ = m;
+				addChild(banner_);
+				tween_ = new Tween(banner_,"x",Strong.easeOut,320,0,0.8,true);
+			}
 		}
 
 		private function addListeners():void
@@ -41,12 +76,13 @@ package
 			{
 				dots[i].addEventListener(MouseEvent.MOUSE_DOWN, initiatePattern);
 				dots[i].alpha=0.6;
-				//dots[i].addEventListener(MouseEvent.MOUSE_UP, stopPattern);
 			}
 		}
 
 		private function initiatePattern(e:MouseEvent):void
 		{
+			path = [];
+
 			var dotsLength:int = dots.length;
 			e.target.alpha = 1;
 
@@ -58,7 +94,7 @@ package
 			stage.addEventListener(MouseEvent.MOUSE_MOVE, drawTraceLine);
 			stage.addEventListener(MouseEvent.MOUSE_UP, stopPattern);
 
-			path.push(dots.indexOf(e.target) + 1);
+			path.push(dots.indexOf(e.target));
 
 			last_dot_index = dots.indexOf(e.target);
 		}
@@ -70,13 +106,9 @@ package
 		private function addPattern(e:MouseEvent):void
 		{
 			var index:int = dots.indexOf(e.target);
+			e.target.removeEventListener(MouseEvent.MOUSE_OVER, addPattern);
 			e.target.alpha = 1;
-			path.push(index + 1);
-
-			if (dotslink)
-			{
-				this.removeChild(dotslink);
-			}
+			path.push(index);
 
 			if (false)
 			{
@@ -101,12 +133,6 @@ package
 			}
 			stage.removeEventListener(MouseEvent.MOUSE_MOVE, drawTraceLine);
 			checkPattern();
-
-			if (dotslink)
-			{
-				this.removeChild(dotslink);
-			}
-			dotslink = null;
 		}
 
 		private function checkPattern():void
@@ -120,7 +146,14 @@ package
 			}
 			pwdt.text = pass;
 
-			path = [];
+			if (work_mode_ == WorkMode.CREATE)
+			{
+				drawPattern();
+				removeChild(banner_);
+				banner_ = new CreateConfirm();
+				addChild(banner_);
+				var tween:Tween = new Tween(banner_,"x",Strong.easeOut,320,0,0.8,true);
+			}
 		}
 
 		function drawTraceLine(e:MouseEvent)
@@ -130,12 +163,39 @@ package
 			trace_line_drawer_.addPoint(stage.mouseX, stage.mouseY);
 			trace_line_drawer_.draw();
 		}
+		
+		function drawPattern()
+		{
+			if (path.length < 1)
+			{
+				return;
+			}
+			
+			dotslink = new Shape();
+			dotslink.graphics.lineStyle(10, 0xFFD700, 1, false, LineScaleMode.VERTICAL,
+				                               CapsStyle.ROUND, JointStyle.ROUND, 10);
+			this.addChild(dotslink);
+			trace(path[0]);
+			dotslink.graphics.moveTo(dots[path[0]].x, dots[path[0]].y);
+			for (var i:int = 0; i < path.length; i++)
+			{
+				dotslink.graphics.lineTo(dots[path[i]].x, dots[path[i]].y);
+			}
+		}
 	}
 }
 import flash.display.Shape;
 import flash.display.CapsStyle;
 import flash.display.JointStyle;
 import flash.display.LineScaleMode;
+
+internal final class WorkMode
+{
+	public static const CREATE:String = "create";
+	public static const DELETE:String = "delete";
+	public static const VERIFY:String = "verify";
+	public static const MODIFY:String = "modify";
+}
 
 internal class TracePoint
 {
