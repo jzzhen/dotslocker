@@ -18,8 +18,7 @@ package
 	{
 		private var dots:Array = [];
 		private var path:Array = [];
-		private var dotslink:Shape = null;
-		private var last_dot_index:int = -1;
+		private var dotsline_:Shape = null;
 
 		private var lastX:Number = 0;
 		private var lastY:Number = 0;
@@ -28,6 +27,7 @@ package
 		private var work_mode_:String = null;
 		private var banner_:MovieClip = null;
 		private var tween_:Tween;
+		private var newpwd_ = "";
 		
 		private var trace_line_drawer_:TraceLineDrawer = null;
 
@@ -35,18 +35,30 @@ package
 		{
 			trace_line_drawer_ = new TraceLineDrawer(this, 200);
 			dots = [one,two,three,four,five,six,seven,eight,nine];
-			addListeners();
-			do_init();
-		}
-		
-		private function do_init()
-		{
-			var m:String = loaderInfo.parameters["m"];
+			
+			var m:String = loaderInfo.parameters["m"]
 			if (!m)
 			{
 				m = WorkMode.CREATE;
 			}
-
+			do_init(m);
+		}
+		
+		private function do_init(m:String)
+		{
+			// remove dot-lines
+			if (dotsline_)
+			{
+				this.removeChild(dotsline_);
+				dotsline_ = null;
+			}
+			
+			showBanner(m);
+			enablePatternPannel(m);
+		}
+		
+		private function showBanner(m:String)
+		{
 			switch(m)
 			{
 				case WorkMode.CREATE:
@@ -67,71 +79,75 @@ package
 				tween_ = new Tween(banner_,"x",Strong.easeOut,320,0,0.8,true);
 			}
 		}
-
-		private function addListeners():void
+		
+		private function enablePatternPannel(m:String)
 		{
-			var dotsLength:int = dots.length;
-
-			for (var i:int = 0; i < dotsLength; i++)
+			for each (var dot:MovieClip in dots)
 			{
-				dots[i].addEventListener(MouseEvent.MOUSE_DOWN, initiatePattern);
-				dots[i].alpha=0.6;
+				dot.addEventListener(MouseEvent.MOUSE_DOWN, startPattern);
+				dot.alpha=0.6;
+			}
+		}
+		
+		private function disablePatternPannel()
+		{
+			for each (var dot:MovieClip in dots)
+			{
+				dot.removeEventListener(MouseEvent.MOUSE_DOWN, startPattern);
+				disableDot(dot);
 			}
 		}
 
-		private function initiatePattern(e:MouseEvent):void
+		private function startPattern(e:MouseEvent):void
 		{
 			path = [];
 
-			var dotsLength:int = dots.length;
-			e.target.alpha = 1;
-
-			for (var i:int = 0; i < dotsLength; i++)
+			for each (var dot:MovieClip in dots)
 			{
-				dots[i].addEventListener(MouseEvent.MOUSE_OVER, addPattern);
-				dots[i].addEventListener(MouseEvent.MOUSE_OUT, mouseMoveOut);
+				enableDot(dot);
 			}
 			stage.addEventListener(MouseEvent.MOUSE_MOVE, drawTraceLine);
 			stage.addEventListener(MouseEvent.MOUSE_UP, stopPattern);
-
-			path.push(dots.indexOf(e.target));
-
-			last_dot_index = dots.indexOf(e.target);
+			
+			addPattern(e);
 		}
+		
+		private function enableDot(dot:MovieClip)
+		{
+			dot.addEventListener(MouseEvent.MOUSE_OVER, addPattern);
+			dot.addEventListener(MouseEvent.MOUSE_OUT, mouseMoveOut);
+		}
+		
+		private function disableDot(dot:MovieClip)
+		{
+			dot.removeEventListener(MouseEvent.MOUSE_OVER, addPattern);
+			dot.removeEventListener(MouseEvent.MOUSE_OUT, mouseMoveOut);
+		}
+		
 		private function mouseMoveOut(e:MouseEvent)
 		{
 			e.target.alpha = 0.6;
+			disableDot(e.target as MovieClip);
 		}
 
 		private function addPattern(e:MouseEvent):void
 		{
 			var index:int = dots.indexOf(e.target);
-			e.target.removeEventListener(MouseEvent.MOUSE_OVER, addPattern);
 			e.target.alpha = 1;
 			path.push(index);
-
-			if (false)
-			{
-				dotslink = new Shape();
-				this.addChild(dotslink);
-
-				dotslink.graphics.lineStyle(10, 0xFFD700, 1, false, LineScaleMode.VERTICAL,
-				                               CapsStyle.ROUND, JointStyle.ROUND, 10);
-				dotslink.graphics.moveTo(75+(last_dot_index%3)*85, 121+int(last_dot_index/3)*85);
-				dotslink.graphics.lineTo(75+(index%3)*85, 121+int(index/3)*85);
-				last_dot_index = index;
-			}
 		}
 
 		private function stopPattern(e:MouseEvent):void
 		{
 			var dotsLength:int = dots.length;
 
-			for (var i:int = 0; i < dotsLength; i++)
+			for each (var dot:MovieClip in dots)
 			{
-				dots[i].removeEventListener(MouseEvent.MOUSE_OVER, addPattern);
+				dot.removeEventListener(MouseEvent.MOUSE_OVER, addPattern);
 			}
 			stage.removeEventListener(MouseEvent.MOUSE_MOVE, drawTraceLine);
+			stage.removeEventListener(MouseEvent.MOUSE_UP, stopPattern);
+			disablePatternPannel();
 			checkPattern();
 		}
 
@@ -140,19 +156,41 @@ package
 			var pLength:int = path.length;
 			var pass:String = "";
 
-			for (var i:int = 0; i < pLength; i++)
+			for each (var index:int in path)
 			{
-				pass +=  path[i];
+				pass +=  index;
 			}
 			pwdt.text = pass;
 
 			if (work_mode_ == WorkMode.CREATE)
 			{
+				newpwd_ = pass;
+				trace_line_drawer_.clear();
 				drawPattern();
+				
+				// 
 				removeChild(banner_);
 				banner_ = new CreateConfirm();
 				addChild(banner_);
-				var tween:Tween = new Tween(banner_,"x",Strong.easeOut,320,0,0.8,true);
+				var tween:Tween = new Tween(banner_,"x",Back.easeOut,320,0,0.8,true);
+				banner_.btnBackward.addEventListener(MouseEvent.CLICK, function(){do_init(WorkMode.CREATE);});
+				banner_.btnForward.addEventListener(MouseEvent.CLICK, function(){do_init(WorkMode.VERIFY);});
+			}
+			else if (work_mode_ == WorkMode.VERIFY)
+			{
+				if (newpwd_)
+				{
+					if (pass == newpwd_)
+					{
+						banner_ = new CreateSuc();
+						addChild(banner_);
+						tween_ = new Tween(banner_,"x",Strong.easeOut,320,0,0.8,true);
+					}
+					else
+					{
+						do_init(WorkMode.CREATE);
+					}
+				}
 			}
 		}
 
@@ -171,15 +209,15 @@ package
 				return;
 			}
 			
-			dotslink = new Shape();
-			dotslink.graphics.lineStyle(10, 0xFFD700, 1, false, LineScaleMode.VERTICAL,
+			dotsline_ = new Shape();
+			dotsline_.graphics.lineStyle(10, 0xFFD700, 1, false, LineScaleMode.VERTICAL,
 				                               CapsStyle.ROUND, JointStyle.ROUND, 10);
-			this.addChild(dotslink);
-			trace(path[0]);
-			dotslink.graphics.moveTo(dots[path[0]].x, dots[path[0]].y);
-			for (var i:int = 0; i < path.length; i++)
+			this.addChild(dotsline_);
+			dotsline_.graphics.moveTo(dots[path[0]].x, dots[path[0]].y);
+			for each (var index:int in path)
 			{
-				dotslink.graphics.lineTo(dots[path[i]].x, dots[path[i]].y);
+				dots[index].alpha = 1;
+				dotsline_.graphics.lineTo(dots[index].x, dots[index].y);
 			}
 		}
 	}
@@ -274,6 +312,8 @@ internal class TraceLineDrawer
 
 	public function clear()
 	{
+		canvas_.removeChild(line_);
+		line_ = null;
 		points_ = [];
 	}
 }
